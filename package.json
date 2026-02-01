@@ -1,0 +1,16 @@
+{
+  "name": "video-render-server",
+  "version": "1.0.0",
+  "description": "FFmpeg video render server",
+  "main": "server.mjs",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "fluent-ffmpeg": "^2.1.3",
+    "multer": "^2.0.2"
+  }
+}

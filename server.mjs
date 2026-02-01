@@ -17,24 +17,19 @@ app.use(express.json());
 const uploadDir = "uploads";
 const processedDir = "processed";
 
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir);
-}
-
-if (!fs.existsSync(processedDir)) {
-  fs.mkdirSync(processedDir);
-}
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
+if (!fs.existsSync(processedDir)) fs.mkdirSync(processedDir);
 
 // ==============================
-// static processed files
+// static access
 // ==============================
-app.use("/processed", express.static(processedDir));
+app.use("/videos", express.static(processedDir));
 
 // ==============================
 // upload config
 // ==============================
 const upload = multer({
-  dest: uploadDir,
+  dest: uploadDir + "/",
 });
 
 // ==============================
@@ -47,41 +42,50 @@ app.get("/", (req, res) => {
 // ==============================
 // upload + render
 // ==============================
-app.post("/upload", upload.single("video"), async (req, res) => {
-  try {
-    const inputPath = req.file.path;
-    const outputFile = Date.now() + ".mp4";
-    const outputPath = path.join(processedDir, outputFile);
+app.post(
+  "/upload",
+  upload.single("video"),
+  async (req, res) => {
+    try {
+      const inputPath = req.file.path;
 
-    ffmpeg(inputPath)
-      .outputOptions([
-        "-preset veryfast",
-        "-movflags faststart",
-        "-profile:v baseline",
-        "-level 3.0",
-        "-vf scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2",
-      ])
-      .on("end", () => {
-        fs.unlinkSync(inputPath);
+      const fileName = Date.now() + ".mp4";
+      const outputPath = path.join(processedDir, fileName);
 
-        res.json({
-          ok: true,
-          url: `/processed/${outputFile}`,
-        });
-      })
-      .on("error", (err) => {
-        console.error(err);
-        res.status(500).json({
-          ok: false,
-          error: "ffmpeg failed",
-        });
-      })
-      .save(outputPath);
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ ok: false });
+      ffmpeg(inputPath)
+        .outputOptions([
+          "-preset veryfast",
+          "-movflags +faststart",
+          "-pix_fmt yuv420p",
+          "-profile:v baseline",
+          "-level 3.0",
+          "-vf scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2",
+        ])
+        .on("end", () => {
+          fs.unlinkSync(inputPath);
+
+          res.json({
+            ok: true,
+            url: `/videos/${fileName}`,
+            fullUrl: `${req.protocol}://${req.get(
+              "host"
+            )}/videos/${fileName}`,
+          });
+        })
+        .on("error", (err) => {
+          console.error(err);
+          res.status(500).json({
+            ok: false,
+            error: "ffmpeg failed",
+          });
+        })
+        .save(outputPath);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ ok: false });
+    }
   }
-});
+);
 
 // ==============================
 // START SERVER 🔥
